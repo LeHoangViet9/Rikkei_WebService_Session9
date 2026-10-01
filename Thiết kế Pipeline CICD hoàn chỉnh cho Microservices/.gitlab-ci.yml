@@ -1,0 +1,50 @@
+stages:
+  - test
+  - build
+  - dockerize
+
+# 1. Bẫy dữ liệu - Kiểm tra chặt chẽ với PostgreSQL
+test_job:
+  stage: test
+  image: gradle:7.6-jdk17
+  services:
+    - name: postgres:14-alpine
+      alias: postgres
+  variables:
+    POSTGRES_DB: cartdb
+    POSTGRES_USER: root
+    POSTGRES_PASSWORD: rootpassword
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cartdb
+  script:
+    - chmod +x ./gradlew
+    - ./gradlew test
+
+# 2. Đóng gói ứng dụng nếu Test thành công
+build_job:
+  stage: build
+  image: gradle:7.6-jdk17
+  script:
+    - chmod +x ./gradlew
+    - ./gradlew build -x test
+  artifacts:
+    paths:
+      - build/libs/*.jar
+    expire_in: 1 day
+
+# 3. Đóng gói Image và Gắn Tag động theo Commit
+dockerize_job:
+  stage: dockerize
+  image: docker:latest
+  services:
+    - docker:dind
+  dependencies:
+    - build_job
+  # Đảm bảo chỉ tự động push Docker Image khi code được gộp vào nhánh main
+  only:
+    - main
+  script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    
+    # Sử dụng $CI_COMMIT_SHORT_SHA để tự động gắn tag (ví dụ: lehoangviet9/cart-service:8f3a9b1)
+    - docker build -t $DOCKER_USERNAME/cart-service:$CI_COMMIT_SHORT_SHA .
+    - docker push $DOCKER_USERNAME/cart-service:$CI_COMMIT_SHORT_SHA
