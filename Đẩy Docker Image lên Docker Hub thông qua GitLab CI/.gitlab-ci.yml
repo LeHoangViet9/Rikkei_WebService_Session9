@@ -1,0 +1,52 @@
+stages:
+  - test
+  - build
+  - dockerize
+
+# 1. Giai đoạn Test (Kế thừa từ Bài 3)
+test_job:
+  stage: test
+  image: gradle:7.6-jdk17
+  services:
+    - name: postgres:14-alpine
+      alias: postgres
+  variables:
+    POSTGRES_DB: testdb
+    POSTGRES_USER: testuser
+    POSTGRES_PASSWORD: testpassword
+  script:
+    - chmod +x ./gradlew
+    - ./gradlew test
+
+# 2. Giai đoạn Build (Kế thừa từ Bài 3)
+build_job:
+  stage: build
+  image: gradle:7.6-jdk17
+  script:
+    - chmod +x ./gradlew
+    - ./gradlew build -x test
+  artifacts:
+    paths:
+      - build/libs/*.jar
+    expire_in: 1 day
+
+# 3. Giai đoạn Dockerize: Đóng gói và Push lên Docker Hub
+dockerize_job:
+  stage: dockerize
+  # Sử dụng image Docker để chạy các lệnh docker cli
+  image: docker:latest
+  # Khởi chạy dịch vụ Docker-in-Docker (DinD)
+  services:
+    - docker:dind
+  # Khai báo nhận artifacts (.jar) từ bước build_job
+  dependencies:
+    - build_job
+  script:
+    # Đăng nhập Docker Hub an toàn (không lộ mật khẩu trong log nhờ --password-stdin)
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    
+    # Build Docker image (sử dụng biến $DOCKER_USERNAME để tag đúng namespace của repo)
+    - docker build -t $DOCKER_USERNAME/payment-service:latest .
+    
+    # Push image lên Docker Hub
+    - docker push $DOCKER_USERNAME/payment-service:latest
