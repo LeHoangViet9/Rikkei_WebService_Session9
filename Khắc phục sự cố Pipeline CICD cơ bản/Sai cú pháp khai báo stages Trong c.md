@@ -1,0 +1,3 @@
+Sai cú pháp khai báo stages: Trong chuẩn YAML của GitLab CI, stages yêu cầu khai báo dưới dạng một mảng (danh sách). Việc chỉ viết build_app thụt lề mà không có dấu gạch ngang (-) ở đầu dòng là sai định dạng, khiến GitLab không thể phân tích cấu trúc pipeline.
+
+Thiếu môi trường thực thi (Docker Image): Lệnh ./gradlew (Gradle Wrapper) bắt buộc phải có Java Development Kit (JDK) để biên dịch dự án Spring Boot. Do cấu hình không chỉ định từ khóa image, GitLab Runner sẽ sử dụng image mặc định của hệ thống (thường không cài sẵn Java). Điều này trực tiếp dẫn đến lỗi hệ thống không nhận diện được lệnh ("command not found").

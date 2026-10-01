@@ -1,0 +1,12 @@
+# Khai báo Docker image chứa môi trường JDK 17 để chạy lệnh Gradle
+image: eclipse-temurin:17-jdk-alpine
+
+stages:
+  - build_app
+
+build_job:
+  stage: build_app
+  script:
+    # Cấp quyền thực thi cho Gradle wrapper để tránh lỗi Permission denied (nếu có)
+    - chmod +x ./gradlew 
+    - ./gradlew clean build -x test

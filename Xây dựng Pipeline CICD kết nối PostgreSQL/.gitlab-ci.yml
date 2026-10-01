@@ -1,0 +1,40 @@
+# Khai báo các giai đoạn của pipeline
+stages:
+  - test
+  - build
+
+# 1. Giai đoạn Test: Chạy unit/integration test với PostgreSQL
+test_job:
+  stage: test
+  # Sử dụng image chứa sẵn Gradle và JDK 17
+  image: gradle:7.6-jdk17
+  
+  # Khởi tạo một container PostgreSQL chạy song song phục vụ việc test
+  services:
+    - name: postgres:14-alpine
+      alias: postgres # Tạo alias để mã nguồn Java có thể kết nối thông qua host là "postgres"
+
+  # Cấu hình các biến môi trường bắt buộc để khởi tạo Database PostgreSQL
+  variables:
+    POSTGRES_DB: testdb
+    POSTGRES_USER: testuser
+    POSTGRES_PASSWORD: testpassword
+    # (Nếu mã nguồn cấu hình URL động, bạn có thể truyền thêm biến SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/testdb)
+
+  script:
+    - chmod +x ./gradlew
+    - ./gradlew test
+
+# 2. Giai đoạn Build: Đóng gói ứng dụng thành file .jar
+build_job:
+  stage: build
+  image: gradle:7.6-jdk17
+  script:
+    - chmod +x ./gradlew
+    - ./gradlew build -x test # Bỏ qua bước test vì đã chạy ở stage trước
+  
+  # Lưu trữ file .jar sau khi build thành công để tải xuống hoặc dùng cho bước deploy sau này
+  artifacts:
+    paths:
+      - build/libs/*.jar
+    expire_in: 1 day # Tự động xóa file sau 1 ngày để tiết kiệm dung lượng
